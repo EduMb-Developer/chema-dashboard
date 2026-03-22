@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChemaAI — Training Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@900&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080808;
+      --bg2: #111;
+      --bg3: #161616;
+      --border: #1e1e1e;
+      --border2: #2a2a2a;
+      --yellow: #e8ff00;
+      --yellow-dim: #1a2a00;
+      --text: #e0e0e0;
+      --muted: #666;
+      --green: #4ade80;
+      --red: #f87171;
+      --blue: #60a5fa;
+      --orange: #fb923c;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .header {
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 900;
+      font-size: 20px;
+      letter-spacing: 3px;
+      color: var(--yellow);
+    }
+    .logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* BUTTONS */
+    .btn {
+      border: none; border-radius: 8px; padding: 7px 16px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      font-family: 'DM Mono', monospace; transition: all 0.15s;
+    }
+    .btn-yellow { background: var(--yellow); color: #000; }
+    .btn-yellow:hover { opacity: 0.85; }
+    .btn-outline { background: var(--yellow-dim); border: 1px solid var(--yellow); color: var(--yellow); }
+    .btn-outline:hover { background: var(--yellow); color: #000; }
+    .btn-ghost { background: var(--bg3); border: 1px solid var(--border2); color: var(--muted); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* MAIN */
+    .main { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+    /* KPI CARDS */
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .kpi-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+    }
+    .kpi-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+    .kpi-value { font-size: 32px; font-weight: 700; line-height: 1; font-family: 'Barlow Condensed', sans-serif; }
+    .kpi-desc { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    /* STATUS BAR */
+    .status-bar {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; font-size: 12px;
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
+    /* TABS */
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab {
+      flex: 1; background: transparent; border: 1px solid transparent;
+      border-radius: 8px; padding: 8px; font-size: 11px; font-weight: 700;
+      color: var(--muted); cursor: pointer; letter-spacing: 1px;
+      text-transform: uppercase; font-family: 'DM Mono', monospace;
+      transition: all 0.15s;
+    }
+    .tab.active { background: var(--bg2); border-color: var(--border2); color: var(--yellow); }
+
+    /* CARDS */
+    .card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; margin-bottom: 12px;
+    }
+    .card-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+
+    /* CHART */
+    .chart-wrap { position: relative; height: 180px; }
+
+    /* ZONES */
+    .zone-card {
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+      border-left: 3px solid;
+    }
+    .zone-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .zone-name { font-size: 13px; font-weight: 700; }
+    .zone-range { font-size: 13px; font-weight: 700; }
+    .zone-desc { font-size: 11px; color: var(--muted); }
+    .zone-bar { margin-top: 6px; background: var(--bg3); border-radius: 3px; height: 4px; overflow: hidden; }
+    .zone-bar-fill { height: 100%; opacity: 0.6; border-radius: 3px; }
+
+    /* LOG */
+    .log-item {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 6px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .log-name { font-size: 12px; color: #ccc; font-weight: 600; }
+    .log-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .log-load { font-size: 20px; font-weight: 700; color: var(--yellow); font-family: 'Barlow Condensed', sans-serif; }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.88);
+      z-index: 200; display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .modal {
+      background: var(--bg3); border: 1px solid var(--border2);
+      border-radius: 14px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--bg3);
+    }
+    .modal-title { font-weight: 700; font-size: 14px; color: var(--yellow); letter-spacing: 1px; }
+    .modal-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .close-btn { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+
+    /* FORM */
+    label.field { display: flex; flex-direction: column; gap: 4px; }
+    .field-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; }
+    input[type=text], input[type=number], input[type=date], input[type=password] {
+      background: var(--bg); border: 1px solid var(--border2); border-radius: 8px;
+      padding: 9px 12px; color: var(--text); font-size: 13px; outline: none;
+      font-family: 'DM Mono', monospace; width: 100%;
+    }
+    input:focus { border-color: var(--yellow); }
+    .range-wrap { display: flex; flex-direction: column; gap: 6px; }
+    input[type=range] { width: 100%; accent-color: var(--yellow); }
+    .range-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); }
+
+    /* LOAD PREVIEW */
+    .load-preview {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; text-align: center;
+    }
+    .load-preview-label { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+    .load-preview-value { font-size: 28px; font-weight: 700; color: var(--yellow); font-family: 'Barlow Condensed', sans-serif; }
+
+    /* ALERT */
+    .alert { border-radius: 8px; padding: 10px 12px; font-size: 12px; }
+    .alert-success { background: #0a2a0a; border: 1px solid #33cc33; color: #88ff88; }
+    .alert-error { background: #2a0a0a; border: 1px solid #cc3333; color: #ff8888; }
+    .alert-info { background: var(--yellow-dim); border: 1px solid var(--yellow); color: var(--yellow); }
+
+    /* SYNC STATUS */
+    .sync-status { font-size: 11px; color: var(--green); }
+
+    /* CONVERSION TABLE */
+    .conv-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+    }
+    .conv-row:last-child { border-bottom: none; }
+
+    /* HIDDEN */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="logo-title">⚡ CHEMA AI</div>
+    <div class="logo-sub">Training Dashboard</div>
+  </div>
+  <div class="header-actions">
+    <span class="sync-status" id="sync-status"></span>
+    <button class="btn btn-outline" id="btn-sync" onclick="syncStrava()">⚡ Sync Strava</button>
+    <button class="btn btn-yellow" onclick="openAddModal()">+ Sesión</button>
+    <button class="btn btn-ghost" onclick="openSettingsModal()">⚙</button>
+  </div>
+</header>
+
+<main class="main">
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">CTL · Fitness</div>
+      <div class="kpi-value" id="ctl-val" style="color:#60a5fa">—</div>
+      <div class="kpi-desc">Forma acumulada (42d)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">ATL · Fatiga</div>
+      <div class="kpi-value" id="atl-val" style="color:#f87171">—</div>
+      <div class="kpi-desc">Carga reciente (7d)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">TSB · Forma</div>
+      <div class="kpi-value" id="tsb-val">—</div>
+      <div class="kpi-desc" id="tsb-desc">—</div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div>
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-label" style="font-weight:700">—</span>
+    </div>
+    <span id="status-tip" style="color:var(--muted)">—</span>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('fitness')">Fitness</button>
+    <button class="tab" onclick="showTab('zones')">Zonas FC</button>
+    <button class="tab" onclick="showTab('log')">Registro</button>
+  </div>
+
+  <!-- FITNESS TAB -->
+  <div id="tab-fitness">
+    <div class="card">
+      <div class="card-title">FITNESS & FATIGA — últimos 60 días</div>
+      <div class="chart-wrap"><canvas id="chart-ctl"></canvas></div>
+      <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:10px">
+        <span style="color:#60a5fa">── CTL Fitness</span>
+        <span style="color:#f87171">── ATL Fatiga</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">FORMA (TSB) — últimos 60 días</div>
+      <div class="chart-wrap"><canvas id="chart-tsb"></canvas></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px">
+        <span>-25 sobreentrenamiento</span><span>0 equilibrio</span><span>+10 óptimo</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ZONES TAB -->
+  <div id="tab-zones" class="hidden">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px" id="zones-header">FCmax: — · LTHR: —</div>
+    <div id="zones-list"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">CONVERSIÓN FC → %FTP</div>
+      <div class="conv-row"><span style="color:#888">70% FCmax</span><span style="color:#444">→</span><span style="color:var(--yellow);font-weight:700">67% FTP</span><span style="color:var(--muted);font-size:10px">Z2 base</span></div>
+      <div class="conv-row"><span style="color:#888">75% FCmax</span><span style="color:#444">→</span><span style="color:var(--yellow);font-weight:700">77% FTP</span><span style="color:var(--muted);font-size:10px">Z3 tempo</span></div>
+      <div class="conv-row"><span style="color:#888">80% FCmax</span><span style="color:#444">→</span><span style="color:var(--yellow);font-weight:700">86% FTP</span><span style="color:var(--muted);font-size:10px">Z4 umbral</span></div>
+      <div class="conv-row"><span style="color:#888">85% FCmax</span><span style="color:#444">→</span><span style="color:var(--yellow);font-weight:700">96% FTP</span><span style="color:var(--muted);font-size:10px">Z4 alto</span></div>
+      <div class="conv-row"><span style="color:#888">90% FCmax</span><span style="color:#444">→</span><span style="color:var(--yellow);font-weight:700">105% FTP</span><span style="color:var(--muted);font-size:10px">Z5 VO2max</span></div>
+    </div>
+  </div>
+
+  <!-- LOG TAB -->
+  <div id="tab-log" class="hidden">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px" id="log-summary">—</div>
+    <div id="log-list"></div>
+  </div>
+</main>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay hidden" id="modal-add">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">+ Registrar sesión</span>
+      <button class="close-btn" onclick="closeModal('modal-add')">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span class="field-label">Fecha</span>
+        <input type="date" id="add-date">
+      </label>
+      <label class="field">
+        <span class="field-label">Nombre (opcional)</span>
+        <input type="text" id="add-name" placeholder="ej: Salida larga Z2">
+      </label>
+      <label class="field">
+        <span class="field-label">Duración (minutos)</span>
+        <input type="number" id="add-duration" placeholder="ej: 210" oninput="updateLoadPreview()">
+      </label>
+      <label class="field">
+        <span class="field-label">FC Media (bpm, opcional)</span>
+        <input type="number" id="add-hr" placeholder="ej: 142" oninput="updateLoadPreview()">
+      </label>
+      <div class="range-wrap">
+        <span class="field-label">RPE: <span id="rpe-val">5</span>/10</span>
+        <input type="range" min="1" max="10" value="5" id="add-rpe" oninput="document.getElementById('rpe-val').textContent=this.value;updateLoadPreview()">
+        <div class="range-labels"><span>Muy fácil</span><span>Máximo</span></div>
+      </div>
+      <div class="load-preview hidden" id="load-preview">
+        <div class="load-preview-label">Carga estimada</div>
+        <div class="load-preview-value" id="load-preview-val">—</div>
+      </div>
+      <button class="btn btn-yellow" onclick="addActivity()" style="width:100%">Guardar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay hidden" id="modal-settings">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">⚙ Configuración</span>
+      <button class="close-btn" onclick="closeModal('modal-settings')">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field">
+        <span class="field-label">FC Máxima (bpm)</span>
+        <input type="number" id="set-hrmax" value="196">
+      </label>
+      <label class="field">
+        <span class="field-label">LTHR — Umbral Lactato (bpm)</span>
+        <input type="number" id="set-lthr" value="170">
+        <span style="font-size:10px;color:var(--muted)">FC media en test FTP de 20min</span>
+      </label>
+      <div class="alert alert-info" style="font-size:11px">
+        La sincronización con Strava es automática al abrir la página.<br>
+        URL del proxy: <strong id="proxy-url-display">—</strong>
+      </div>
+      <div id="settings-msg"></div>
+      <button class="btn btn-yellow" onclick="saveSettings()" style="width:100%">Guardar</button>
+      <button class="btn btn-ghost" onclick="clearData()" style="width:100%;font-size:11px">🗑 Borrar todos los datos</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+const PROXY_URL = window.location.origin; // Same domain — no CORS!
+const CTL_DECAY = Math.exp(-1/42);
+const ATL_DECAY = Math.exp(-1/7);
+
+// ── Storage ─────────────────────────────────────────────────────────────────
+const LS = {
+  get: (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let activities = LS.get('td-activities', []);
+let hrMax = LS.get('td-hrmax', 196);
+let lthr  = LS.get('td-lthr', 170);
+let ctlChart = null, tsbChart = null;
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('add-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('set-hrmax').value = hrMax;
+  document.getElementById('set-lthr').value  = lthr;
+  document.getElementById('proxy-url-display').textContent = PROXY_URL;
+  render();
+  autoSync();
+});
+
+// ── Auto sync on load ────────────────────────────────────────────────────────
+async function autoSync() {
+  const lastSync = LS.get('td-last-sync', null);
+  const minsAgo  = lastSync ? (Date.now() - new Date(lastSync)) / 60000 : 999;
+  if (minsAgo < 30 && activities.length > 0) {
+    document.getElementById('sync-status').textContent = `🔄 ${Math.round(minsAgo)}m`;
+    return;
+  }
+  await syncStrava(true);
+}
+
+// ── Sync Strava ──────────────────────────────────────────────────────────────
+async function syncStrava(silent = false) {
+  const btn = document.getElementById('btn-sync');
+  const status = document.getElementById('sync-status');
+  btn.disabled = true;
+  btn.textContent = '...';
+  if (!silent) status.textContent = 'Sincronizando...';
+
+  try {
+    const res  = await fetch('/api/strava');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error ' + res.status);
+    if (!Array.isArray(data)) throw new Error('Respuesta inesperada');
+
+    // Merge with existing
+    const map = {};
+    [...activities, ...data].forEach(a => { map[a.date + '_' + a.name] = a; });
+    activities = Object.values(map).sort((a,b) => b.date.localeCompare(a.date));
+    LS.set('td-activities', activities);
+    LS.set('td-last-sync', new Date().toISOString());
+
+    status.textContent = `✅ ${data.length} actividades`;
+    render();
+  } catch(e) {
+    status.textContent = silent ? '' : '❌ ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Sync Strava';
+  }
+}
+
+// ── CTL/ATL/TSB ──────────────────────────────────────────────────────────────
+function calcFitness(days = 90) {
+  const actMap = {};
+  activities.forEach(a => { actMap[a.date] = (actMap[a.date] || 0) + a.load; });
+
+  const today = new Date();
+  const start = new Date(today); start.setDate(start.getDate() - days);
+  let ctl = 0, atl = 0;
+  const data = [];
+
+  for (let i = 0; i <= days; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    const ds = d.toISOString().slice(0,10);
+    const load = actMap[ds] || 0;
+    ctl = ctl * CTL_DECAY + load * (1 - CTL_DECAY);
+    atl = atl * ATL_DECAY + load * (1 - ATL_DECAY);
+    data.push({ date: ds, ctl: +ctl.toFixed(1), atl: +atl.toFixed(1), tsb: +(ctl-atl).toFixed(1), load });
+  }
+  return data;
+}
+
+// ── TSB Status ───────────────────────────────────────────────────────────────
+function tsbInfo(tsb) {
+  if (tsb > 15)  return { label: 'Muy descansado', color: '#4ade80', tip: 'Listo para rendir al máximo' };
+  if (tsb > 5)   return { label: 'Descansado', color: '#a3e635', tip: 'Buen momento para intensidad' };
+  if (tsb > -5)  return { label: 'Equilibrado', color: '#facc15', tip: 'Carga normal, sigue el plan' };
+  if (tsb > -15) return { label: 'Fatiga normal', color: '#fb923c', tip: 'Estás en carga, es bueno' };
+  if (tsb > -25) return { label: 'Fatiga alta', color: '#f87171', tip: 'Considera descanso extra' };
+  return { label: 'Sobreentrenamiento', color: '#e879f9', tip: 'Descansa urgente' };
+}
+
+// ── HR Zones ─────────────────────────────────────────────────────────────────
+function calcZones() {
+  return [
+    { zone:'Z1', name:'Recuperación',  color:'#4ade80', min:0,                        max:Math.round(hrMax*0.68),       desc:'Muy fácil. Recuperación activa.' },
+    { zone:'Z2', name:'Base Aeróbica', color:'#a3e635', min:Math.round(hrMax*0.68)+1, max:Math.round(lthr*0.89),        desc:'El 80% del entrenamiento. Puedes hablar.' },
+    { zone:'Z3', name:'Tempo',         color:'#facc15', min:Math.round(lthr*0.90),     max:Math.round(lthr*0.94),        desc:'Esfuerzo moderado. Frases cortas.' },
+    { zone:'Z4', name:'Umbral',        color:'#fb923c', min:Math.round(lthr*0.95),     max:Math.round(lthr*1.02),        desc:'Umbral de lactato. Duro pero controlado.' },
+    { zone:'Z5', name:'VO2max',        color:'#f87171', min:Math.round(lthr*1.03),     max:hrMax,                        desc:'Muy intenso. Solo series cortas.' },
+  ];
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  const fitness = calcFitness(90);
+  const last    = fitness[fitness.length - 1] || {};
+  const recent  = fitness.slice(-60);
+  const st      = tsbInfo(last.tsb || 0);
+
+  // KPIs
+  document.getElementById('ctl-val').textContent = last.ctl ?? '—';
+  document.getElementById('atl-val').textContent = last.atl ?? '—';
+  document.getElementById('tsb-val').textContent = last.tsb ?? '—';
+  document.getElementById('tsb-val').style.color = st.color;
+  document.getElementById('tsb-desc').textContent = st.label;
+
+  // Status bar
+  const dot = document.getElementById('status-dot');
+  dot.style.background = st.color;
+  dot.style.boxShadow  = `0 0 6px ${st.color}`;
+  document.getElementById('status-label').textContent = st.label;
+  document.getElementById('status-label').style.color = st.color;
+  document.getElementById('status-tip').textContent   = st.tip;
+
+  // Charts
+  renderCTLChart(recent);
+  renderTSBChart(recent);
+  renderZones();
+  renderLog();
+}
+
+function renderCTLChart(data) {
+  const ctx = document.getElementById('chart-ctl').getContext('2d');
+  if (ctlChart) ctlChart.destroy();
+  ctlChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.date.slice(5)),
+      datasets: [
+        { label:'CTL', data: data.map(d=>d.ctl), borderColor:'#60a5fa', borderWidth:2, pointRadius:0, tension:0.3, fill:false },
+        { label:'ATL', data: data.map(d=>d.atl), borderColor:'#f87171', borderWidth:1.5, pointRadius:0, tension:0.3, fill:false, borderDash:[4,2] },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}` } } },
+      scales:{
+        x:{ ticks:{color:'#444',font:{size:9}}, grid:{color:'#1a1a1a'} },
+        y:{ ticks:{color:'#444',font:{size:9}}, grid:{color:'#1a1a1a'}, beginAtZero:true }
+      }
+    }
+  });
+}
+
+function renderTSBChart(data) {
+  const ctx = document.getElementById('chart-tsb').getContext('2d');
+  if (tsbChart) tsbChart.destroy();
+  tsbChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.date.slice(5)),
+      datasets: [{
+        label:'TSB', data: data.map(d=>d.tsb),
+        borderColor:'#e8ff00', borderWidth:2, pointRadius:0, tension:0.3,
+        fill:true, backgroundColor:'rgba(232,255,0,0.05)'
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{color:'#444',font:{size:9}}, grid:{color:'#1a1a1a'} },
+        y:{ ticks:{color:'#444',font:{size:9}}, grid:{color:'#1a1a1a'} }
+      }
+    }
+  });
+}
+
+function renderZones() {
+  const zones = calcZones();
+  document.getElementById('zones-header').textContent = `FCmax: ${hrMax} bpm · LTHR: ${lthr} bpm`;
+  const list = document.getElementById('zones-list');
+  list.innerHTML = zones.map(z => `
+    <div class="zone-card" style="background:#111;border-left-color:${z.color}">
+      <div class="zone-header">
+        <div>
+          <span class="zone-name" style="color:${z.color}">${z.zone}</span>
+          <span style="font-size:12px;color:#aaa;margin-left:8px">${z.name}</span>
+        </div>
+        <span class="zone-range" style="color:${z.color}">${z.min}–${Math.min(z.max,hrMax)} bpm</span>
+      </div>
+      <div class="zone-desc">${z.desc}</div>
+      <div class="zone-bar">
+        <div class="zone-bar-fill" style="background:${z.color};width:${Math.min(((Math.min(z.max,hrMax)-z.min)/(hrMax*0.35))*100,100)}%"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderLog() {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-28);
+  const recent = activities.filter(a => new Date(a.date) >= cutoff);
+  const totalH  = recent.reduce((s,a) => s+a.duration, 0) / 60;
+  const totalKm = recent.reduce((s,a) => s+(a.distance||0), 0);
+
+  document.getElementById('log-summary').textContent =
+    `${activities.length} sesiones · Últimas 4 sem: ${totalH.toFixed(1)}h · ${totalKm.toFixed(0)}km · ${(totalH/4).toFixed(1)}h/sem`;
+
+  const list = document.getElementById('log-list');
+  list.innerHTML = activities.slice(0,30).map(a => `
+    <div class="log-item">
+      <div>
+        <div class="log-name">${a.name}</div>
+        <div class="log-meta">${a.date} · ${a.duration}' · ${a.distance||'—'}km${a.hrAvg?` · ${a.hrAvg}bpm`:''}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="log-load">${a.load}</div>
+        <div style="font-size:9px;color:var(--muted)">carga</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Add Activity ──────────────────────────────────────────────────────────────
+function updateLoadPreview() {
+  const dur = parseFloat(document.getElementById('add-duration').value) || 0;
+  const hr  = parseFloat(document.getElementById('add-hr').value) || 0;
+  const rpe = parseFloat(document.getElementById('add-rpe').value) || 5;
+  if (!dur) { document.getElementById('load-preview').classList.add('hidden'); return; }
+  const intensity = hr > 0 ? Math.min(hr/170, 1.2) : rpe/10;
+  const load = Math.round((dur/60) * intensity * 100);
+  document.getElementById('load-preview-val').textContent = load;
+  document.getElementById('load-preview').classList.remove('hidden');
+}
+
+function addActivity() {
+  const dur  = parseFloat(document.getElementById('add-duration').value);
+  if (!dur) return;
+  const date = document.getElementById('add-date').value;
+  const name = document.getElementById('add-name').value || 'Entrenamiento';
+  const hr   = parseFloat(document.getElementById('add-hr').value) || 0;
+  const rpe  = parseFloat(document.getElementById('add-rpe').value) || 5;
+  const intensity = hr > 0 ? Math.min(hr/170, 1.2) : rpe/10;
+  const load = Math.round((dur/60) * intensity * 100);
+
+  activities.unshift({ date, name, duration: dur, hrAvg: hr, load, distance: 0 });
+  activities.sort((a,b) => b.date.localeCompare(a.date));
+  LS.set('td-activities', activities);
+  render();
+  closeModal('modal-add');
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+function saveSettings() {
+  hrMax = parseInt(document.getElementById('set-hrmax').value) || 196;
+  lthr  = parseInt(document.getElementById('set-lthr').value) || 170;
+  LS.set('td-hrmax', hrMax);
+  LS.set('td-lthr', lthr);
+  render();
+  closeModal('modal-settings');
+}
+
+function clearData() {
+  if (confirm('¿Borrar todas las actividades?')) {
+    activities = [];
+    LS.set('td-activities', []);
+    LS.set('td-last-sync', null);
+    render();
+    closeModal('modal-settings');
+  }
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  ['fitness','zones','log'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('hidden', t !== name);
+  });
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', ['fitness','zones','log'][i] === name);
+  });
+}
+
+// ── Modals ────────────────────────────────────────────────────────────────────
+function openAddModal() {
+  document.getElementById('add-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('add-name').value = '';
+  document.getElementById('add-duration').value = '';
+  document.getElementById('add-hr').value = '';
+  document.getElementById('add-rpe').value = 5;
+  document.getElementById('rpe-val').textContent = 5;
+  document.getElementById('load-preview').classList.add('hidden');
+  document.getElementById('modal-add').classList.remove('hidden');
+}
+
+function openSettingsModal() {
+  document.getElementById('set-hrmax').value = hrMax;
+  document.getElementById('set-lthr').value  = lthr;
+  document.getElementById('modal-settings').classList.remove('hidden');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+</script>
+</body>
+</html>
