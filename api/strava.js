@@ -84,10 +84,13 @@ export default async function handler(req, res) {
     const result = activities
       .filter(a => bikeTypes.includes(a.type))
       .map(a => {
-        const durH      = (a.moving_time || 0) / 3600;
-        const hrAvg     = a.average_heartrate || 0;
-        const intensity = hrAvg > 0 ? Math.min(hrAvg / 170, 1.2) : 0.65;
-        const load      = Math.round(durH * intensity * 100);
+        const durH  = (a.moving_time || 0) / 3600;
+        const hrAvg = a.average_heartrate || 0;
+        const LTHR  = 170; // Edu LTHR
+        // hrTSS formula (Coggan) — matches Intervals.icu and TrainingPeaks
+        const load  = hrAvg > 0
+          ? Math.round(durH * Math.pow(hrAvg / LTHR, 2) * 100)
+          : Math.round(durH * 0.65 * 100);
         return {
           date:     a.start_date_local?.slice(0, 10) || "",
           name:     a.name || "Cycling",
@@ -105,3 +108,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
+
